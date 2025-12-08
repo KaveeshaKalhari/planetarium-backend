@@ -10,7 +10,6 @@ public class PlanetariumApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(PlanetariumApplication.class, args);
-
 	}
     @Bean
     public ModelMapper modelMapper() {

@@ -6,7 +6,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "users") // rename the table to 'users'
+@Table(name = "users",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = "username"),
+                @UniqueConstraint(columnNames = "email")
+        }
+ ) // rename the table to 'users'
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
@@ -14,14 +19,14 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
-
+    private Integer id;
 
     @Column(unique = true, nullable = false)
-        private String username;
+    private String username;
 
-        @Column(unique = true)
-        private String email;
+    @Column(unique = true, nullable = false)
+    private String email;
 
-        private String password;
+    @Column(nullable = false)
+    private String password;
 }
