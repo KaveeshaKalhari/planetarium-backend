@@ -45,3 +45,6 @@ Thumbs.db
 ### Temp Files ###
 *.tmp
 *.cache
+
+.env
+run.ps1
