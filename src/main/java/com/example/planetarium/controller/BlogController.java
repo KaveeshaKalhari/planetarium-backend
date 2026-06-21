@@ -5,6 +5,9 @@ import com.example.planetarium.dto.BlogRequestDTO;
 import com.example.planetarium.dto.BlogResponseDTO;
 import com.example.planetarium.service.BlogService;
 import com.example.planetarium.util.JwtUtil;
+
+import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,7 +39,7 @@ public class BlogController {
     // WriteBlogPage — submit a new blog (must be logged in)
     @PostMapping
     public ResponseEntity<?> submitBlog(
-            @RequestBody BlogRequestDTO request,
+            @Valid @RequestBody BlogRequestDTO request,
             @RequestHeader("Authorization") String authHeader) {
         try {
             Integer userId = extractUserId(authHeader);

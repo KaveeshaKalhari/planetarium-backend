@@ -16,9 +16,10 @@ public class BookingResponseDTO {
     private List<String> seatIds;
     private int numberOfSeats;
     private double subtotal;
-    private double tax;
-    private double serviceFee;
     private double totalAmount;
     private String status;
     private String createdAt;
+    private String customerName;
+    private String customerEmail;
+    private SchoolFormDTO schoolForm;
 }

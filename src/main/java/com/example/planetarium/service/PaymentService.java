@@ -22,6 +22,15 @@ public class PaymentService {
     @Autowired
     private BookingRepo bookingRepo;
 
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private QRCodeService qrCodeService;
+
+    @Autowired
+    private NotificationService notificationService;
+
     // Called from PaymentPage after user fills card details
     public PaymentResponseDTO processPayment(PaymentRequestDTO request, Integer userId) {
         Booking booking = bookingRepo.findById(request.getBookingId())
@@ -32,8 +41,8 @@ public class PaymentService {
             throw new RuntimeException("Unauthorized");
         }
 
-        if (!"PENDING".equals(booking.getStatus())) {
-            throw new RuntimeException("Booking is not in a payable state (status: " + booking.getStatus() + ")");
+        if (paymentRepo.findByBookingId(booking.getId()).isPresent()) {
+            throw new RuntimeException("This booking has already been paid for");
         }
 
         // In a real system, you'd call a payment gateway (Stripe, PayHere, etc.) here.
@@ -48,9 +57,48 @@ public class PaymentService {
         payment.setCardHolderName(request.getCardHolderName());
         payment = paymentRepo.save(payment);
 
-        // Confirm the booking
-        booking.setStatus("CONFIRMED");
-        bookingRepo.save(booking);
+        // Notify the user their booking is confirmed
+        try {
+            notificationService.notifyBookingConfirmed(
+                    booking.getUser(),
+                    booking.getShow().getTitle(),
+                    booking.getBookingReference());
+        } catch (Exception e) {
+            System.err.println("Failed to create booking-confirmed notification: " + e.getMessage());
+        }
+
+        // Send QR ticket email
+        try {
+            String qrContent = booking.getBookingReference();
+            String qrBase64 = qrCodeService.generateQRCodeBase64(qrContent);
+
+            String seatNumbers = booking.getSeats().stream()
+                    .map(s -> s.getSeatRow() + s.getSeatNumber())
+                    .reduce((a, b) -> a + ", " + b)
+                    .orElse("N/A");
+
+            String showDate = booking.getShow().getShowDate() != null
+                    ? booking.getShow().getShowDate().toString()
+                    : "TBA";
+            String showTime = booking.getShow().getShowTime() != null
+                    ? booking.getShow().getShowTime().toString()
+                    : "TBA";
+
+            emailService.sendBookingTicketEmail(
+                    booking.getCustomerName(),
+                    booking.getCustomerEmail(),
+                    booking.getBookingReference(),
+                    booking.getShow().getTitle(),
+                    showDate,
+                    showTime,
+                    booking.getNumberOfSeats(),
+                    seatNumbers,
+                    booking.getTotalAmount(),
+                    qrBase64);
+        } catch (Exception e) {
+            System.err.println("Failed to send QR ticket email: " + e.getMessage());
+            // Don't fail the payment if email fails
+        }
 
         return toResponseDTO(payment);
     }
@@ -72,11 +120,9 @@ public class PaymentService {
         }
 
         payment.setStatus("REFUNDED");
-        booking.setStatus("CANCELLED");
         // Restore available seats
         booking.getShow().setAvailableSeats(
-                booking.getShow().getAvailableSeats() + booking.getNumberOfSeats()
-        );
+                booking.getShow().getAvailableSeats() + booking.getNumberOfSeats());
 
         paymentRepo.save(payment);
         bookingRepo.save(booking);
@@ -98,8 +144,9 @@ public class PaymentService {
         dto.setAmount(payment.getAmount());
         dto.setPaymentMethod(payment.getPaymentMethod());
         dto.setStatus(payment.getStatus());
-        dto.setPaidAt(payment.getPaidAt() != null ?
-                payment.getPaidAt().format(DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm")) : "");
+        dto.setPaidAt(payment.getPaidAt() != null
+                ? payment.getPaidAt().format(DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm"))
+                : "");
         return dto;
     }
 }

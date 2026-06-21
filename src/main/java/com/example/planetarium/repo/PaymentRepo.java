@@ -15,10 +15,9 @@ public interface PaymentRepo extends JpaRepository<Payment, Long> {
 
     Optional<Payment> findByBookingId(Long bookingId);
 
-    // For revenue analysis
-    @Query("SELECT FUNCTION('DATE', p.paidAt), SUM(p.amount) FROM Payment p WHERE p.paidAt BETWEEN :start AND :end AND p.status = 'SUCCESS' GROUP BY FUNCTION('DATE', p.paidAt) ORDER BY FUNCTION('DATE', p.paidAt)")
+    @Query(value = "SELECT DATE(paid_at), SUM(amount) FROM payments WHERE paid_at BETWEEN :start AND :end AND payment_status = 'SUCCESS' GROUP BY DATE(paid_at) ORDER BY DATE(paid_at)", nativeQuery = true)
     List<Object[]> getDailyRevenueBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
-    @Query("SELECT FUNCTION('MONTH', p.paidAt), SUM(p.amount) FROM Payment p WHERE p.paidAt >= :since AND p.status = 'SUCCESS' GROUP BY FUNCTION('MONTH', p.paidAt) ORDER BY FUNCTION('MONTH', p.paidAt)")
+    @Query(value = "SELECT EXTRACT(MONTH FROM paid_at), SUM(amount) FROM payments WHERE paid_at >= :since AND payment_status = 'SUCCESS' GROUP BY EXTRACT(MONTH FROM paid_at) ORDER BY EXTRACT(MONTH FROM paid_at)", nativeQuery = true)
     List<Object[]> getMonthlyRevenueSince(@Param("since") LocalDateTime since);
 }

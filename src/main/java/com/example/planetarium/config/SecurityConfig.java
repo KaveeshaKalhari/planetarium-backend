@@ -33,44 +33,48 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
 
-                // ── Fully public ──────────────────────────────────────────────
-                .requestMatchers(
-                    "/api/v1/signup",
-                    "/api/v1/login",
-                    "/api/v1/createuser",
-                    "/api/v1/auth/google",
-                    "/api/v1/auth/google/callback",
-                    "/api/v1/password-reset/**",
-                    "/api/v1/contact"
-                ).permitAll()
+                        // ── Fully public ──────────────────────────────────────────────
+                        .requestMatchers(
+                                "/api/v1/signup",
+                                "/api/v1/login",
+                                "/api/v1/createuser",
+                                "/api/v1/auth/google",
+                                "/api/v1/auth/google/callback",
+                                "/api/v1/password-reset/**",
+                                "/api/v1/contact")
+                        .permitAll()
 
-                // Public read-only (show calendar, blog list, seat map)
-                .requestMatchers(HttpMethod.GET, "/api/v1/shows").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/shows/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/blogs").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/blogs/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/seats/show/**").permitAll()
+                        // QR code images must be public so Gmail can load them in emails
+                        .requestMatchers(HttpMethod.GET, "/api/v1/qr/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/events/subscribe").permitAll()
 
-                .requestMatchers("/api/v1/shows/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/v1/blogs/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/v1/bookings/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/v1/analytics/**").hasRole("ADMIN")
-                .requestMatchers("/api/v1/getusers").hasRole("ADMIN")
+                        // Public read-only (show calendar, blog list, seat map)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/shows").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/shows/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/blogs").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/blogs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/seats/show/**").permitAll()
 
-                // Chat: admin sub-paths locked to ADMIN, user paths require any auth
-                .requestMatchers("/api/v1/chat/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/v1/chat/**").authenticated()
+                        // Admin-only write operations
+                        .requestMatchers("/api/v1/shows/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/blogs/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/bookings/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/analytics/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/getusers").hasRole("ADMIN")
 
-                // Everything else requires a valid JWT (any role)
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                        // Chat: admin sub-paths locked to ADMIN, user paths require any auth
+                        .requestMatchers("/api/v1/chat/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/chat/**").authenticated()
+ 
+                        // Everything else requires a valid JWT (any role)
+                        .anyRequest().authenticated())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -79,9 +83,9 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        // PATCH added — Spring Security blocks it by default without explicit allowance
         configuration.setAllowedMethods(
-            Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-        );
+                Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);

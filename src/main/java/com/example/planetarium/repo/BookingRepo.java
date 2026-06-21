@@ -18,15 +18,17 @@ public interface BookingRepo extends JpaRepository<Booking, Long> {
 
     Optional<Booking> findByBookingReference(String reference);
 
-    List<Booking> findByStatusOrderByCreatedAtDesc(String status);
-
-    @Query("SELECT COUNT(b) FROM Booking b WHERE b.createdAt BETWEEN :start AND :end AND b.status = 'CONFIRMED'")
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.createdAt BETWEEN :start AND :end " +
+            "AND EXISTS (SELECT 1 FROM Payment p WHERE p.booking = b AND p.status = 'SUCCESS')")
     Long countConfirmedBookingsBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
-    @Query("SELECT SUM(b.totalAmount) FROM Booking b WHERE b.createdAt BETWEEN :start AND :end AND b.status = 'CONFIRMED'")
+    @Query("SELECT SUM(b.totalAmount) FROM Booking b WHERE b.createdAt BETWEEN :start AND :end " +
+            "AND EXISTS (SELECT 1 FROM Payment p WHERE p.booking = b AND p.status = 'SUCCESS')")
     Double sumRevenueBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     // For admin booking analysis — daily counts
-    @Query("SELECT FUNCTION('DATE', b.createdAt), COUNT(b) FROM Booking b WHERE b.createdAt >= :since AND b.status = 'CONFIRMED' GROUP BY FUNCTION('DATE', b.createdAt) ORDER BY FUNCTION('DATE', b.createdAt)")
+    @Query("SELECT FUNCTION('DATE', b.createdAt), COUNT(b) FROM Booking b WHERE b.createdAt >= :since " +
+            "AND EXISTS (SELECT 1 FROM Payment p WHERE p.booking = b AND p.status = 'SUCCESS') " +
+            "GROUP BY FUNCTION('DATE', b.createdAt) ORDER BY FUNCTION('DATE', b.createdAt)")
     List<Object[]> getDailyBookingCountsSince(@Param("since") LocalDateTime since);
 }

@@ -15,9 +15,11 @@ import java.util.List;
 public class ShowController {
 
     @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ApiResponse> handleNotFound(RuntimeException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ApiResponse(false, e.getMessage()));
+    public ResponseEntity<ApiResponse> handleRuntimeException(RuntimeException e) {
+        HttpStatus status = e.getMessage().contains("not found")
+                ? HttpStatus.NOT_FOUND
+                : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status).body(new ApiResponse(false, e.getMessage()));
     }
 
     @Autowired

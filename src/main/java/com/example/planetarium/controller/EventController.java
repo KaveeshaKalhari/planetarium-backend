@@ -1,7 +1,6 @@
 package com.example.planetarium.controller;
 
 import java.util.List;
-import java.lang.reflect.Method;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,55 +26,24 @@ import lombok.RequiredArgsConstructor;
 public class EventController {
     private final EventService eventService;
 
-    // Public — users see this on EventPage
     @GetMapping
     public ResponseEntity<List<EventDTO>> getUpcoming() {
-        try {
-            Method method = eventService.getClass().getMethod("getUpcomingEvents");
-            @SuppressWarnings("unchecked")
-            List<EventDTO> events = (List<EventDTO>) method.invoke(eventService);
-            return ResponseEntity.ok(events);
-        } catch (ReflectiveOperationException ex) {
-            throw new IllegalStateException("Failed to get upcoming events", ex);
-        }
+        return ResponseEntity.ok(eventService.getUpcomingEvents());
     }
 
-    // Admin only
     @GetMapping("/admin/all")
     public ResponseEntity<List<EventDTO>> getAllAdmin() {
-        try {
-            Method method = eventService.getClass().getMethod("getAllForAdmin");
-            @SuppressWarnings("unchecked")
-            List<EventDTO> events = (List<EventDTO>) method.invoke(eventService);
-            return ResponseEntity.ok(events);
-        } catch (ReflectiveOperationException ex) {
-            throw new IllegalStateException("Failed to get all events for admin", ex);
-        }
+        return ResponseEntity.ok(eventService.getAllForAdmin());
     }
 
     @PostMapping("/admin")
     public ResponseEntity<EventDTO> create(@RequestBody EventDTO dto) {
-        try {
-            Method method = eventService.getClass().getMethod(
-                "create",
-                dto.getClass().getInterfaces().length > 0 ? dto.getClass().getInterfaces()[0] : dto.getClass()
-            );
-            EventDTO created = (EventDTO) method.invoke(eventService, dto);
-            return ResponseEntity.status(HttpStatus.CREATED).body(created);
-        } catch (ReflectiveOperationException ex) {
-            throw new IllegalStateException("Failed to create event", ex);
-        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(eventService.create(dto));
     }
 
     @PutMapping("/admin/{id}")
     public ResponseEntity<EventDTO> update(@PathVariable Long id, @RequestBody EventDTO dto) {
-        try {
-            Method method = eventService.getClass().getMethod("update", Long.class, dto.getClass().getInterfaces().length > 0 ? dto.getClass().getInterfaces()[0] : dto.getClass());
-            EventDTO updated = (EventDTO) method.invoke(eventService, id, dto);
-            return ResponseEntity.ok(updated);
-        } catch (ReflectiveOperationException ex) {
-            throw new IllegalStateException("Failed to update event", ex);
-        }
+        return ResponseEntity.ok(eventService.update(id, dto));
     }
 
     @DeleteMapping("/admin/{id}")

@@ -26,6 +26,9 @@ public class Show {
     @Column(nullable = false)
     private String status = "UPCOMING";
 
+    @Column(name = "session_type")
+    private String sessionType;
+
     @Column(name = "show_date")
     private LocalDate showDate;
 

@@ -40,12 +40,6 @@ public class Booking {
     private double subtotal;
 
     @Column(nullable = false)
-    private double tax;
-
-    @Column(nullable = false)
-    private double serviceFee;
-
-    @Column(nullable = false)
     private double totalAmount;
 
     // "PENDING", "CONFIRMED", "CANCELLED"

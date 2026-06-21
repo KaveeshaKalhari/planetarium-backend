@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -45,6 +46,7 @@ public class ShowService {
     // ── Admin operations ─────────────────────────────────────────────────────
 
     public ShowDTO createShow(ShowDTO dto) {
+        validateSessionDate(dto);
         Show show = toEntity(dto);
         show.setAvailableSeats(dto.getTotalSeats() > 0 ? dto.getTotalSeats() : 224);
         show.setTotalSeats(dto.getTotalSeats() > 0 ? dto.getTotalSeats() : 224);
@@ -53,8 +55,10 @@ public class ShowService {
     }
 
     public ShowDTO updateShow(Long id, ShowDTO dto) {
+        validateSessionDate(dto);
         Show existing = showRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Show not found with id: " + id));
+        existing.setSessionType(dto.getSessionType());
         existing.setTitle(dto.getTitle());
         existing.setDescription(dto.getDescription());
         existing.setShowDate(dto.getShowDate());
@@ -77,13 +81,17 @@ public class ShowService {
     public List<ShowDTO> getAllShowsForAdmin() {
         return showRepo.findAll()
                 .stream()
+                .filter(s -> s.getShowDate() != null && !s.getShowDate().isBefore(LocalDate.now()))
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
 
+    // ── Mappers ───────────────────────────────────────────────────────────────
+
     private ShowDTO toDTO(Show show) {
         ShowDTO dto = new ShowDTO();
         dto.setId(show.getId());
+        dto.setSessionType(show.getSessionType());   // ← fixed
         dto.setTitle(show.getTitle());
         dto.setDescription(show.getDescription());
         dto.setShowDate(show.getShowDate());
@@ -102,6 +110,7 @@ public class ShowService {
 
     private Show toEntity(ShowDTO dto) {
         Show show = new Show();
+        show.setSessionType(dto.getSessionType());   // ← fixed
         show.setTitle(dto.getTitle());
         show.setDescription(dto.getDescription());
         show.setShowDate(dto.getShowDate());
@@ -114,5 +123,46 @@ public class ShowService {
         show.setPricePerSeat(dto.getPricePerSeat());
         show.setTicketPrice(dto.getPricePerSeat());
         return show;
+    }
+
+    // ── Session date validation ───────────────────────────────────────────────
+
+    private void validateSessionDate(ShowDTO dto) {
+        LocalDate date = dto.getShowDate();
+        if (date == null || dto.getSessionType() == null) return;
+
+        DayOfWeek day = date.getDayOfWeek();
+        int weekOfMonth = (date.getDayOfMonth() - 1) / 7 + 1;
+
+        switch (dto.getSessionType()) {
+            case "SCHOOL" -> {
+                if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY)
+                    throw new RuntimeException("School sessions must be on weekdays (Mon–Fri).");
+            }
+            case "PUBLIC_SINHALA" -> {
+                if (day != DayOfWeek.SATURDAY && day != DayOfWeek.SUNDAY)
+                    throw new RuntimeException("Public Sinhala sessions must be on weekends.");
+                if (day == DayOfWeek.SATURDAY && weekOfMonth == 2)
+                    throw new RuntimeException("2nd Saturday is reserved for Tamil & English sessions.");
+                if (day == DayOfWeek.SUNDAY && weekOfMonth == 4)
+                    throw new RuntimeException("4th Sunday is reserved for Tamil & English sessions.");
+            }
+            case "PUBLIC_TAMIL" -> {
+                boolean is2ndSatMorning = day == DayOfWeek.SATURDAY && weekOfMonth == 2
+                        && "morning".equals(dto.getShowTime());
+                boolean is4thSunMorning = day == DayOfWeek.SUNDAY && weekOfMonth == 4
+                        && "morning".equals(dto.getShowTime());
+                if (!is2ndSatMorning && !is4thSunMorning)
+                    throw new RuntimeException("Tamil sessions must be on 2nd Saturday or 4th Sunday, morning only.");
+            }
+            case "PUBLIC_ENGLISH" -> {
+                boolean is2ndSatEvening = day == DayOfWeek.SATURDAY && weekOfMonth == 2
+                        && "afternoon".equals(dto.getShowTime());
+                boolean is4thSunEvening = day == DayOfWeek.SUNDAY && weekOfMonth == 4
+                        && "afternoon".equals(dto.getShowTime());
+                if (!is2ndSatEvening && !is4thSunEvening)
+                    throw new RuntimeException("English sessions must be on 2nd Saturday or 4th Sunday, afternoon only.");
+            }
+        }
     }
 }

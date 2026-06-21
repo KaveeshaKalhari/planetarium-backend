@@ -13,6 +13,7 @@ public class ShowDTO {
     private String showTime;          // "morning" or "afternoon"
     private String audienceType;      // "School Program" or "Public Program"
     private String programType;
+    private String sessionType;
     private String language;
     private String grade;
     private int totalSeats;

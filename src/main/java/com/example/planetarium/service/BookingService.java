@@ -5,7 +5,6 @@ import com.example.planetarium.dto.BookingResponseDTO;
 import com.example.planetarium.model.*;
 import com.example.planetarium.repo.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,13 +17,6 @@ import java.util.stream.Collectors;
 @Transactional
 public class BookingService {
 
-    // ── Injected from application.properties ─────────────────────────────────
-    @Value("${booking.tax.rate:0.07}")
-    private double taxRate;
-
-    @Value("${booking.service.fee:2.50}")
-    private double serviceFee;
-
     @Autowired
     private BookingRepo bookingRepo;
 
@@ -36,6 +28,9 @@ public class BookingService {
 
     @Autowired
     private UserRepo userRepo;
+
+    @Autowired
+    private SchoolBookingFormRepo schoolBookingFormRepo;
 
     // ── Called from ReviewOrderPage → proceeds to PaymentPage ────────────────
     public BookingResponseDTO createBooking(BookingRequestDTO request, Integer userId) {
@@ -67,10 +62,9 @@ public class BookingService {
                     "Not enough seats available. Only " + show.getAvailableSeats() + " remaining.");
         }
 
-        // 5. Calculate pricing (uses injected rates, not hardcoded constants)
+        // 5. Calculate pricing (no tax or service fee — total equals subtotal)
         double subtotal = Math.round(requestedCount * show.getPricePerSeat() * 100.0) / 100.0;
-        double tax = Math.round(subtotal * taxRate * 100.0) / 100.0;
-        double total = Math.round((subtotal + tax + serviceFee) * 100.0) / 100.0;
+        double total = subtotal;
 
         // 6. Generate booking reference
         String reference = generateReference();
@@ -82,13 +76,27 @@ public class BookingService {
         booking.setShow(show);
         booking.setNumberOfSeats(requestedCount);
         booking.setSubtotal(subtotal);
-        booking.setTax(tax);
-        booking.setServiceFee(serviceFee);
         booking.setTotalAmount(total);
         booking.setStatus("PENDING");
         booking.setCustomerEmail(user.getEmail());
         booking.setCustomerName(user.getUsername());
         booking = bookingRepo.save(booking);
+
+        // 7b. Save school booking form, if this is a school booking
+        if (request.getSchoolForm() != null) {
+            com.example.planetarium.dto.SchoolFormDTO f = request.getSchoolForm();
+            SchoolBookingForm form = new SchoolBookingForm();
+            form.setBooking(booking);
+            form.setSchoolName(f.getSchoolName());
+            form.setSchoolAddress(f.getSchoolAddress());
+            form.setTeacherName(f.getTeacherName());
+            form.setContactNumber(f.getContactNumber());
+            form.setEmail(f.getEmail());
+            form.setStudentCount(f.getStudentCount());
+            form.setGradeLevel(f.getGradeLevel());
+            form.setOtherInfo(f.getOtherInfo());
+            schoolBookingFormRepo.save(form);
+        }
 
         // 8. Save booked seats
         List<BookedSeat> seats = new ArrayList<>();
@@ -195,13 +203,27 @@ public class BookingService {
                         .collect(Collectors.toList()));
         dto.setNumberOfSeats(booking.getNumberOfSeats());
         dto.setSubtotal(booking.getSubtotal());
-        dto.setTax(booking.getTax());
-        dto.setServiceFee(booking.getServiceFee());
         dto.setTotalAmount(booking.getTotalAmount());
         dto.setStatus(booking.getStatus());
         dto.setCreatedAt(booking.getCreatedAt() != null
                 ? booking.getCreatedAt().format(DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm"))
                 : "");
+        dto.setCustomerName(booking.getCustomerName());
+        dto.setCustomerEmail(booking.getCustomerEmail());
+
+        schoolBookingFormRepo.findByBookingId(booking.getId()).ifPresent(form -> {
+            com.example.planetarium.dto.SchoolFormDTO f = new com.example.planetarium.dto.SchoolFormDTO();
+            f.setSchoolName(form.getSchoolName());
+            f.setSchoolAddress(form.getSchoolAddress());
+            f.setTeacherName(form.getTeacherName());
+            f.setContactNumber(form.getContactNumber());
+            f.setEmail(form.getEmail());
+            f.setStudentCount(form.getStudentCount());
+            f.setGradeLevel(form.getGradeLevel());
+            f.setOtherInfo(form.getOtherInfo());
+            dto.setSchoolForm(f);
+        });
+
         return dto;
     }
 }
